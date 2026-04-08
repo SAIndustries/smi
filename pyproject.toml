@@ -5,8 +5,17 @@ description = "RL environment for silent myocardial infarction detection via wea
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "Apache-2.0"}
+dependencies = [
+    "fastapi==0.115.5",
+    "uvicorn[standard]==0.32.1",
+    "pydantic==2.10.3",
+    "openai>=2.7.2",
+    "openenv-core>=0.2.0",
+]
 
-[tool.openenv]
-name = "smi-watch-env"
-version = "2.0.0"
-entry_point = "server.main:app"
+[project.scripts]
+server = "server.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

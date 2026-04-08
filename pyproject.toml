@@ -1,0 +1,12 @@
+[project]
+name = "smi-watch-env-v2"
+version = "2.0.0"
+description = "RL environment for silent myocardial infarction detection via wearable AI"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+
+[tool.openenv]
+name = "smi-watch-env"
+version = "2.0.0"
+entry_point = "server.main:app"

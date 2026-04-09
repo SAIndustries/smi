@@ -214,8 +214,8 @@ def run_task(task_id: str, seed: int = 42) -> dict:
     try:
         obs = env_reset(task_id=task_id, seed=seed)
         if not obs:
-            log_end(success=False, steps=0, score=0.0, rewards=[])
-            return {"task_id": task_id, "final_reward": 0.0, "steps": 0}
+            log_end(success=False, steps=0, score=0.001, rewards=[0.001])
+            return {"task_id": task_id, "final_reward": 0.001, "steps": 0}
 
         hist: List[str] = []
         done = False
@@ -249,7 +249,7 @@ def run_task(task_id: str, seed: int = 42) -> dict:
             done       = result.get("done", False)
             error      = result.get("reward", {}).get("error", None)
 
-            rewards.append(reward_val)
+            rewards.append(min(max(reward_val, 0.001), 0.999))
             steps_taken = step_n
 
             log_step(step=step_n, action=action_str, reward=reward_val, done=done, error=error)
@@ -269,14 +269,14 @@ def run_task(task_id: str, seed: int = 42) -> dict:
                 }
                 result = env_step(finish)
                 reward_val = result.get("reward", {}).get("value", 0.0)
-                rewards.append(reward_val)
+                rewards.append(min(max(reward_val, 0.001), 0.999))
                 steps_taken += 1
                 score = reward_val
                 log_step(step=steps_taken, action="submit_report", reward=reward_val, done=True, error=None)
                 break
 
-        score = min(max(score, 0.0), 1.0)
-        success = score > 0.0
+        score = min(max(score, 0.001), 0.999)
+        success = score > 0.001
 
     except Exception as exc:
         print(f"[DEBUG] run_task exception: {exc}", flush=True)

@@ -28,7 +28,37 @@ SMIWatchEnv is a reinforcement learning environment for training and evaluating 
 
 ---
 
+## PyTorch integration
+
+SMIWatchEnv uses a **PyTorch 1-D convolutional neural network** (`smi_scorer.py`) as a signal-level pre-screener running alongside the rule-based graders.
+
+### Model architecture
+
+```
+Input  : (batch=1, channels=4, timesteps=60)
+         Channels: heart_rate | hrv_rmssd | spo2 | ecg_st_series
+Conv1  : 4 -> 16 filters, kernel=5, padding=2  + BatchNorm1d + ReLU
+Conv2  : 16 -> 32 filters, kernel=3, padding=1 + BatchNorm1d + ReLU
+Pool   : global average pool -> (batch, 32)
+FC1    : Linear(32 -> 16) + ReLU
+FC2    : Linear(16 ->  1) + Sigmoid  ->  risk in [0, 1]
+```
+
+Total parameters: ~4,600. Runs on CPU in under 2 ms per window.
+
+### How it is used
+
+| Location | Role |
+|---|---|
+| `env.py` every `step()` | Scores the current window; result in `observation.cnn_risk_score` |
+| `graders.py` Task 1 | CNN risk > 0.55 adds +0.05 bonus; < 0.25 applies -0.03 penalty |
+| `graders.py` Task 2 | +0.04 agreement bonus when CNN and agent agree on SMI presence |
+| `inference.py` | Signal summary shows `CNN Risk=0.73 [HIGH]` for the LLM to use |
+
+---
+
 ## Why this problem matters
+
 
 Silent MI — myocardial infarction without classic chest pain — accounts for approximately 45% of all MI events. Because patients feel nothing, they seek no treatment. The damage accumulates silently until a fatal event occurs. Continuous wearable monitoring is the only viable detection pathway for this population.
 

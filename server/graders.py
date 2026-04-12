@@ -2,6 +2,7 @@ import os
 from typing import Optional
 from openai import OpenAI
 from patient_gen import PatientProfile, COMORBIDITIES
+from smi_scorer import score_window   # PyTorch CNN risk scorer
 
 
 def _llm_client() -> OpenAI:
@@ -98,11 +99,22 @@ def grade_single_signal(
         diff = abs(levels.index(flagged_severity) - levels.index(patient.smi_severity))
         severity_score = 1.0 if diff == 0 else 0.5 if diff == 1 else 0.0
 
+    # PyTorch CNN consistency check
+    w = patient.windows[0] if patient.windows else {}
+    cnn_risk = score_window(
+        heart_rate=w.get("heart_rate", []),
+        hrv_rmssd=w.get("hrv_rmssd", []),
+        spo2=w.get("spo2", []),
+        ecg_snippet=w.get("ecg_snippet", []),
+    )
+    cnn_bonus = 0.05 if cnn_risk > 0.55 else (-0.03 if cnn_risk < 0.25 else 0.0)
+
     raw   = round(window_score * 0.6 + severity_score * 0.4, 4)
     bonus = _calibration_bonus(confidence, raw > 0.5)
-    score = max(0.0, min(1.0, round(raw + bonus, 4)))
+    score = max(0.0, min(1.0, round(raw + bonus + cnn_bonus, 4)))
     return score, {"window_score": window_score, "severity_score": severity_score,
-                   "window_error_seconds": window_error, "calibration": bonus}
+                   "window_error_seconds": window_error, "calibration": bonus,
+                   "cnn_risk_score": cnn_risk, "cnn_bonus": cnn_bonus}
 
 
 # ---------------------------------------------------------------------------
@@ -172,10 +184,24 @@ def grade_multi_signal(
         llm_s = _llm_score(prompt)
         reasoning_score = round((keyword_score * 0.35 + llm_s * 0.65 + cm_bonus) * 0.3, 4)
 
+    # PyTorch CNN signal-level verification
+    w = patient.windows[0] if patient.windows else {}
+    cnn_risk = score_window(
+        heart_rate=w.get("heart_rate", []),
+        hrv_rmssd=w.get("hrv_rmssd", []),
+        spo2=w.get("spo2", []),
+        ecg_snippet=w.get("ecg_snippet", []),
+    )
+    # Agreement bonus: agent flagged SMI and CNN agrees (or both say normal)
+    agent_says_smi = flagged
+    cnn_says_smi   = cnn_risk > 0.50
+    cnn_agree_bonus = 0.04 if (agent_says_smi == cnn_says_smi) else -0.02
+
     bonus = _calibration_bonus(confidence, True)
-    score = min(1.0, round(programmatic + reasoning_score + bonus, 4))
+    score = min(1.0, round(programmatic + reasoning_score + bonus + cnn_agree_bonus, 4))
     return score, {"programmatic": programmatic, "reasoning_score": reasoning_score,
-                   "severity_correct": severity == patient.smi_severity, "calibration": bonus}
+                   "severity_correct": severity == patient.smi_severity, "calibration": bonus,
+                   "cnn_risk_score": cnn_risk, "cnn_agreement_bonus": cnn_agree_bonus}
 
 
 # ---------------------------------------------------------------------------

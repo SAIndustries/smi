@@ -2,6 +2,7 @@ import random
 from typing import Optional
 
 from models import Action, Observation, Reward, StepResult, State
+from smi_scorer import score_window   # PyTorch CNN risk scorer
 from patient_gen import (
     PatientProfile,
     generate_easy_patient, generate_medium_patient,
@@ -236,6 +237,12 @@ class SMIWatchEnv:
             all_patients=all_pts,
             total_windows=len(p.windows) if p and is_longitudinal else 1,
             current_window=self._current_window,
+            cnn_risk_score=score_window(
+                heart_rate=w.get("heart_rate", []) if w else [],
+                hrv_rmssd=w.get("hrv_rmssd", []) if w else [],
+                spo2=w.get("spo2", []) if w else [],
+                ecg_snippet=w.get("ecg_snippet", []) if w else [],
+            ),
         )
 
     def _process_action(self, action: Action) -> tuple[Reward, str]:

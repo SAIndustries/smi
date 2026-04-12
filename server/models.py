@@ -33,6 +33,7 @@ class Observation(BaseModel):
     done: bool = False
     last_action_feedback: Optional[str] = None
     cumulative_reward: float = 0.0
+    cnn_risk_score: float = 0.0   # PyTorch CNN-derived SMI risk [0,1]
 
     # --- Task 3 only: all 3 patients side by side ---
     all_patients: Optional[List[Dict[str, Any]]] = None

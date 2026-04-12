@@ -63,6 +63,7 @@ observation_space:
   done: boolean
   last_action_feedback: string
   cumulative_reward: number
+  cnn_risk_score: number
   all_patients: array
 
 action_space:

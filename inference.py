@@ -55,6 +55,8 @@ SYSTEM_PROMPT = textwrap.dedent("""
       sleep_apnea: Require ECG ST elevation AND PPG drop before flagging.
       none: Use standard thresholds above.
 
+    CNN_RISK_SCORE: A PyTorch CNN pre-screens each window. Score > 0.6 = model detects SMI signal pattern. Use as additional evidence but do not rely on it alone.
+
     CONFIDENCE: 0.9+ = multiple signals confirm | 0.6-0.8 = 2-3 signals | 0.3-0.5 = 1 signal
 
     OUTPUT FORMAT: reply with exactly one valid JSON object, nothing else. No markdown.
@@ -133,12 +135,15 @@ def _summarise_signals(obs: dict) -> str:
     hrv_delta = round((sum(hrv[-10:])/10 - b_hrv) if hrv else 0, 1)
     sp_delta  = round((sum(spo2[-10:])/10 - b_sp) if spo2 else 0, 1)
 
+    cnn = round(obs.get("cnn_risk_score", 0.0), 3)
+    cnn_flag = "HIGH" if cnn > 0.6 else "MODERATE" if cnn > 0.35 else "low"
     return (
         f"PPG peak={ppg_peak} [{ppg_flag}] | "
         f"HR: {_trend(hr)} (delta {hr_delta:+.1f} from baseline) | "
         f"HRV: {_trend(hrv)} ms (delta {hrv_delta:+.1f} from baseline) | "
         f"SpO2: {_trend(spo2)}% (delta {sp_delta:+.1f} from baseline) | "
-        f"Skin: {temp}C | ECG ST: {st_val} [{st_flag}] | Comorbidity: {cm}"
+        f"Skin: {temp}C | ECG ST: {st_val} [{st_flag}] | Comorbidity: {cm} | "
+        f"CNN Risk={cnn} [{cnn_flag}]"
     )
 
 
